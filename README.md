@@ -1,30 +1,97 @@
 # Coolify Community Enhancements
 
-Tested, version-specific enhancements for self-hosted Coolify installations.
+Practical, tested enhancements for self-hosted Coolify installations, focused on **operational visibility, faster navigation, project status awareness and dashboard performance**.
 
 Maintained by [@mtalavi](https://github.com/mtalavi).
 
 > [!IMPORTANT]
-> These are community-maintained modifications, not official Coolify features. They patch files inside the running Coolify container and can be replaced by a future Coolify update. Every installer is designed around prechecks, backup, validation, and rollback.
+> These are community-maintained modifications, not official Coolify features. They are version-specific and may be replaced by a future Coolify update. Installers use prechecks, timestamped backups, validation and rollback rather than forcing a patch onto an unknown source layout.
+
+## What this adds
+
+| Area | Enhancement |
+| --- | --- |
+| Server visibility | Live CPU usage, core count, RAM usage/capacity and server load in the Coolify top bar |
+| Project awareness | `Running`, `Starting`, `Unhealthy`, `Stopped` and `Empty` status directly on project cards |
+| Project navigation | Clickable active domains directly on project cards |
+| Prioritization | `Running first` sorting with persisted preference |
+| UI inspection | Interactive magnifier for quickly zooming any part of the Coolify interface |
+| Performance | Short-lived status caching and reduced unnecessary background polling |
+
+## Visual preview
+
+### Live server vitals
+
+![Live CPU and RAM indicators](assets/screenshots/server-vitals-cpu-ram.webp)
+
+The top bar exposes the server state without leaving the page: CPU cores and usage, free/used CPU view, RAM usage/capacity and live status.
+
+### Interactive magnifier
+
+![Interactive Coolify magnifier](assets/screenshots/interactive-magnifier.webp)
+
+A compact magnifier button opens a movable zoom lens. Click or move over the interface to inspect dense dashboard areas without changing browser zoom.
+
+### Running-first project sorting
+
+![Running first sorting](assets/screenshots/running-first-sort.webp)
+
+Operational projects can be surfaced first while keeping the existing name/resource/environment sorting choices.
+
+### Project status and clickable domains
+
+<table>
+<tr>
+<td width="50%"><img src="assets/screenshots/project-running-domain.webp" alt="Running project with clickable domain"></td>
+<td width="50%"><img src="assets/screenshots/project-stopped-status.webp" alt="Stopped project status"></td>
+</tr>
+<tr>
+<td><b>Running</b> state plus the active domain directly on the card. Domain chips are clickable.</td>
+<td><b>Stopped</b> state is visible at a glance without opening the project.</td>
+</tr>
+</table>
 
 ## Enhancements
 
 ### 1. Dashboard Observability
 
-Adds operational information directly to the Coolify interface:
+Adds live operational information directly to Coolify:
 
 - live CPU usage and core count
 - live RAM usage and capacity
-- 1-minute server load
-- project-level status badges: `Running`, `Starting`, `Unhealthy`, `Stopped`, `Empty`
-- no custom HTTP telemetry endpoint
-- Livewire-based refresh
+- server load
+- project-level status aggregation
+- Livewire-based refresh without a custom telemetry HTTP endpoint
 
 See [`dashboard-observability/`](dashboard-observability/).
 
-### 2. Dashboard Performance Tuning
+### 2. Project Dashboard Plus
 
-Reduces avoidable background work in the dashboard:
+Makes the Projects view more useful during daily operations:
+
+- `Running first` sorting
+- persisted sort preference
+- `Running`, `Starting`, `Unhealthy`, `Stopped` and `Empty` status
+- clickable active domains on cards
+- domain-aware project search
+- improved table/grid usability
+
+See [`project-dashboard-plus/`](project-dashboard-plus/).
+
+### 3. Interactive Magnifier
+
+Adds a compact interface inspection tool:
+
+- toolbar magnifier button
+- large circular zoom lens
+- inspect any visible dashboard area without browser-level zoom
+- desktop-focused responsive visibility
+
+See [`interactive-magnifier/`](interactive-magnifier/).
+
+### 4. Dashboard Performance Tuning
+
+Reduces avoidable background work:
 
 - short-lived cache for aggregate project status
 - server-vitals polling from 2s to 5s
@@ -39,55 +106,65 @@ On one real Coolify 4.3.10 installation with 22 projects, measured median compon
 | Projects mount | 227.31 ms | 22.77 ms |
 | Project status aggregation | 315.76 ms | 4.10 ms |
 
-These measurements are from one installation and are evidence of the tested case, not a universal benchmark.
+These figures are evidence from one tested installation, not a universal benchmark.
 
 See [`dashboard-performance/`](dashboard-performance/).
 
-## Tested Environment
+## Tested environment
 
 The initial implementation was validated on:
 
 - Coolify `4.3.10`
 - standard Docker-based Coolify installation
-- healthy `coolify`, database, Redis, realtime, sentinel and proxy containers
+- healthy Coolify application, database, Redis, realtime, sentinel and proxy containers
 
-Each enhancement checks its expected source anchors before modifying files. If the installed Coolify source no longer matches the tested layout, the installer should stop instead of applying an unknown patch.
+## Safety model
 
-## Safety Model
+The installation approach is intentionally defensive:
 
-The scripts follow the same basic sequence:
-
-1. verify the Coolify container and required source files
-2. create a timestamped backup
-3. patch temporary copies first
-4. copy the validated result into the container
-5. run PHP / Blade validation where applicable
+1. verify the Coolify container and expected source files
+2. verify the tested Coolify image/version where required
+3. create a timestamped backup
+4. modify temporary copies first
+5. validate PHP / Blade / expected source anchors
 6. clear and rebuild framework caches
 7. restart only the Coolify application container when required
-8. wait for healthy state
-9. rollback automatically if the operation fails
+8. wait for a healthy state
+9. rollback automatically when an operation fails
 
-## Why This Repository Exists
+## Repository structure
 
-These changes started as operational improvements used on a real self-hosted Coolify server. The repository publishes the working approach so other operators can inspect, test, adapt, or improve it.
+```text
+coolify-community-enhancements/
+├── dashboard-observability/
+├── project-dashboard-plus/
+├── interactive-magnifier/
+├── dashboard-performance/
+├── assets/
+│   └── screenshots/
+├── docs/
+└── .github/workflows/
+```
 
-Where an enhancement is useful beyond a local installation, the goal is to discuss the product direction with the Coolify community and, when aligned with the maintainers, contribute a native upstream implementation.
+Each logical enhancement gets its own directory. A separate repository is only warranted when an enhancement becomes a standalone product with its own lifecycle, releases or users outside Coolify.
+
+## Upstream direction
+
+These external modifications are working proofs of concept. They are not presented as the architecture that Coolify must merge unchanged.
+
+For enhancements that fit the product direction, the preferred path is:
+
+**working implementation → evidence → focused community discussion → maintainer feedback → native upstream implementation / PR**
+
+See [`docs/upstream-proposal.md`](docs/upstream-proposal.md).
 
 ## Compatibility
 
-Do not assume compatibility with newer Coolify versions. Check the README inside each enhancement before running it.
-
-If Coolify changes the relevant Blade, Livewire, model, or support files, prefer adapting the patch to the new upstream source rather than forcing it.
+Do not assume compatibility with newer Coolify releases. If Coolify changes the relevant Blade, Livewire, model or support files, adapt the implementation to the new upstream source rather than forcing an old patch.
 
 ## Contributing
 
-Focused reports and improvements are welcome. Include:
-
-- Coolify version
-- what you changed
-- how you tested it
-- before/after behavior
-- relevant logs without credentials or private hostnames
+Focused reports and improvements are welcome. Please include the Coolify version, what changed, how it was tested, before/after behavior and logs with credentials/private hostnames removed.
 
 ## License
 
