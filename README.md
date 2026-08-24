@@ -22,19 +22,25 @@ Maintained by [@mtalavi](https://github.com/mtalavi).
 
 ### Live server vitals
 
-![Live CPU and RAM indicators](assets/screenshots/server-vitals-cpu-ram.webp)
+<p align="center">
+  <img src="assets/screenshots/server-vitals-cpu-ram.webp" alt="Live CPU and RAM indicators" width="690">
+</p>
 
 The top bar exposes the server state without leaving the page: CPU cores and usage, free/used CPU view, RAM usage/capacity and live status.
 
 ### Interactive magnifier
 
-![Interactive Coolify magnifier](assets/screenshots/interactive-magnifier.png)
+<p align="center">
+  <img src="assets/screenshots/interactive-magnifier.png" alt="Interactive Coolify magnifier" width="414">
+</p>
 
 A compact magnifier button opens a movable zoom lens. Click or move over the interface to inspect dense dashboard areas without changing browser zoom.
 
 ### Running-first project sorting
 
-![Running first sorting](assets/screenshots/running-first-sort.webp)
+<p align="center">
+  <img src="assets/screenshots/running-first-sort.webp" alt="Running first sorting" width="285">
+</p>
 
 Operational projects can be surfaced first while keeping the existing name/resource/environment sorting choices.
 
@@ -42,8 +48,8 @@ Operational projects can be surfaced first while keeping the existing name/resou
 
 <table>
 <tr>
-<td width="50%"><img src="assets/screenshots/project-running-domain.webp" alt="Running project with clickable domain"></td>
-<td width="50%"><img src="assets/screenshots/project-stopped-status.webp" alt="Stopped project status"></td>
+<td width="50%" align="center"><img src="assets/screenshots/project-running-domain.webp" alt="Running project with clickable domain" width="439"></td>
+<td width="50%" align="center"><img src="assets/screenshots/project-stopped-status.webp" alt="Stopped project status" width="439"></td>
 </tr>
 <tr>
 <td><b>Running</b> state plus the active domain directly on the card. Domain chips are clickable.</td>
