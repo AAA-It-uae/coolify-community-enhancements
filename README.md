@@ -43,21 +43,6 @@ These measurements are from one installation and are evidence of the tested case
 
 See [`dashboard-performance/`](dashboard-performance/).
 
-### 3. Project Dashboard Plus
-
-Extends the Projects view with information useful during day-to-day operations:
-
-- `Running first` sorting
-- persisted sort preference
-- status column in table view
-- clickable project domains in grid and table views
-- domains included in search
-- responsive horizontal table scrolling
-- server-load gauge relative to CPU core count
-- short-lived domain aggregation cache
-
-See [`project-dashboard-plus/`](project-dashboard-plus/).
-
 ## Tested Environment
 
 The initial implementation was validated on:
