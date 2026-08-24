@@ -10,16 +10,19 @@ BACKUP="/root/coolify-community-backups/dashboard-observability-$STAMP"
 WORK="$(mktemp -d)"
 
 [[ "${EUID:-$(id -u)}" -eq 0 ]] || { echo "Run as root."; exit 2; }
-docker inspect "$CONTAINER" >/dev/null 2>&1 || { echo "Coolify container '$CONTAINER' not found."; exit 3; }
+for cmd in docker curl python3; do
+  command -v "$cmd" >/dev/null 2>&1 || { echo "Required command not found: $cmd"; exit 3; }
+done
+docker inspect "$CONTAINER" >/dev/null 2>&1 || { echo "Coolify container '$CONTAINER' not found."; exit 4; }
 IMAGE="$(docker inspect -f '{{.Config.Image}}' "$CONTAINER")"
 [[ "$IMAGE" == "$EXPECTED_IMAGE" ]] || {
   echo "Unsupported image: $IMAGE"
   echo "Tested image: $EXPECTED_IMAGE"
   echo "Refusing to apply a version-specific patch."
-  exit 4
+  exit 5
 }
 [[ "$(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || true)" == healthy ]] || {
-  echo "Coolify is not healthy; refusing to patch."; exit 5;
+  echo "Coolify is not healthy; refusing to patch."; exit 6;
 }
 
 EXISTING=(
@@ -37,10 +40,18 @@ NEW=(
 
 mkdir -p "$BACKUP" "$WORK"
 for rel in "${EXISTING[@]}"; do
-  docker exec "$CONTAINER" test -f "$ROOT/$rel" || { echo "Missing required file: $rel"; exit 6; }
+  docker exec "$CONTAINER" test -f "$ROOT/$rel" || { echo "Missing required file: $rel"; exit 7; }
   mkdir -p "$BACKUP/$(dirname "$rel")" "$WORK/$(dirname "$rel")"
   docker cp "$CONTAINER:$ROOT/$rel" "$BACKUP/$rel"
   cp "$BACKUP/$rel" "$WORK/$rel"
+done
+
+# Preserve pre-existing community component files as well, making re-runs rollback-safe.
+for rel in "${NEW[@]}"; do
+  if docker exec "$CONTAINER" test -f "$ROOT/$rel"; then
+    mkdir -p "$BACKUP/$(dirname "$rel")"
+    docker cp "$CONTAINER:$ROOT/$rel" "$BACKUP/$rel"
+  fi
 done
 
 mkdir -p "$WORK/app/Livewire" "$WORK/app/Support" "$WORK/resources/views/livewire"
@@ -56,7 +67,11 @@ rollback(){
     [[ -f "$BACKUP/$rel" ]] && docker cp "$BACKUP/$rel" "$CONTAINER:$ROOT/$rel" >/dev/null 2>&1 || true
   done
   for rel in "${NEW[@]}"; do
-    docker exec "$CONTAINER" rm -f "$ROOT/$rel" >/dev/null 2>&1 || true
+    if [[ -f "$BACKUP/$rel" ]]; then
+      docker cp "$BACKUP/$rel" "$CONTAINER:$ROOT/$rel" >/dev/null 2>&1 || true
+    else
+      docker exec "$CONTAINER" rm -f "$ROOT/$rel" >/dev/null 2>&1 || true
+    fi
   done
   docker exec "$CONTAINER" php artisan optimize:clear >/dev/null 2>&1 || true
   docker restart "$CONTAINER" >/dev/null 2>&1 || true
