@@ -27,7 +27,7 @@
 
 <table>
 <tr>
-<td width="33%"><b>🖥️ Live server vitals</b><br>CPU usage, core count, RAM capacity and server load directly in the top bar.</td>
+<td width="33%"><b>🖥️ Live server vitals</b><br>CPU used/free, RAM used/available/total, disk used/free/total and server load directly in the top bar.</td>
 <td width="33%"><b>● Project awareness</b><br><code>Running</code>, <code>Starting</code>, <code>Unhealthy</code>, <code>Stopped</code> and <code>Empty</code> on project cards.</td>
 <td width="33%"><b>↕ Running first</b><br>Surface operational projects first while keeping the existing sort choices.</td>
 </tr>
@@ -40,13 +40,13 @@
 
 ## 🖼️ Visual preview
 
-### Live server vitals
+### Live CPU, RAM and disk vitals
 
 <p align="center">
-  <img src="assets/screenshots/server-vitals-cpu-ram.webp" alt="Live CPU and RAM indicators" width="690">
+  <img src="assets/screenshots/server-vitals-cpu-ram-disk.png" alt="Live CPU, RAM and disk indicators" width="100%">
 </p>
 
-<p align="center"><sub>See CPU, RAM and load without leaving the current page.</sub></p>
+<p align="center"><sub>See used/free CPU, RAM and disk capacity directly in the top bar. Host vitals refresh every 15 seconds.</sub></p>
 
 <table>
 <tr>
@@ -81,11 +81,13 @@
 
 Adds live operational information directly to Coolify:
 
-- live CPU usage and core count
-- live RAM usage and capacity
-- server load
+- CPU core count with used and free percentage
+- RAM used, available and total capacity with percentages
+- root filesystem disk used, free and total capacity with percentages
+- Linux server load averages for 1 / 5 / 15 minutes
+- responsive top-bar layout with progressive disclosure on narrower screens
 - project-level status aggregation
-- Livewire-based refresh without a custom telemetry HTTP endpoint
+- Livewire host-vitals refresh every 15 seconds without a custom telemetry HTTP endpoint
 
 **Explore:** [`dashboard-observability/`](dashboard-observability/)
 
@@ -117,9 +119,9 @@ Adds a compact interface inspection tool:
 Reduces avoidable background work:
 
 - short-lived cache for aggregate project status
-- server-vitals polling from 2s to 5s
-- deployment indicator polling from 3s to 10s
-- active-deployments polling from 3s to 10s
+- host-vitals polling reduced to a 15-second interval
+- deployment indicator polling reduced from the original aggressive interval
+- active-deployments polling reduced from the original aggressive interval
 
 On one real Coolify 4.3.10 installation with 22 projects, measured median component times changed as follows after cache prewarming:
 
@@ -152,6 +154,7 @@ The installation approach is deliberately defensive:
 - Coolify `4.3.10`
 - standard Docker-based Coolify installation
 - healthy Coolify application, database, Redis, realtime, sentinel and proxy containers
+- disk metrics validated against the host root-filesystem view before and after restart
 
 > [!CAUTION]
 > Do not assume compatibility with newer Coolify releases. If upstream source layouts change, adapt the implementation to the new version instead of forcing an older patch.
