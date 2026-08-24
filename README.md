@@ -28,7 +28,7 @@ The top bar exposes the server state without leaving the page: CPU cores and usa
 
 ### Interactive magnifier
 
-![Interactive Coolify magnifier](assets/screenshots/interactive-magnifier.webp)
+![Interactive Coolify magnifier](assets/screenshots/interactive-magnifier.png)
 
 A compact magnifier button opens a movable zoom lens. Click or move over the interface to inspect dense dashboard areas without changing browser zoom.
 
