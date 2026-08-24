@@ -12,7 +12,7 @@ A lightweight inspection tool for dense Coolify interfaces.
 
 ## Screenshot
 
-![Interactive Coolify magnifier](../assets/screenshots/interactive-magnifier.webp)
+![Interactive Coolify magnifier](../assets/screenshots/interactive-magnifier.png)
 
 ## Why
 
