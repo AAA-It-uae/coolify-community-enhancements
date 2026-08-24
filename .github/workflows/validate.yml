@@ -1,0 +1,31 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate shell syntax
+        run: |
+          bash -n dashboard-observability/install.sh
+          bash -n dashboard-performance/install.sh
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Validate PHP syntax
+        run: |
+          php -l dashboard-observability/files/LocalProjectStatus.php
+          php -l dashboard-observability/files/LocalServerVitals.php
