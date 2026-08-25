@@ -96,6 +96,13 @@ def once(rel, old, new, label):
 
 once(
     'resources/views/layouts/app.blade.php',
+    'class="relative flex min-w-0 flex-1 items-center"',
+    'class="relative flex min-w-0 flex-1 items-center overflow-hidden pr-2"',
+    'breadcrumb_collision_guard'
+)
+
+once(
+    'resources/views/layouts/app.blade.php',
     '                    {{-- Dev Server-Timing HUD docks here (local only; empty in production) --}}',
     '                    <livewire:local-server-vitals />\n                    {{-- Dev Server-Timing HUD docks here (local only; empty in production) --}}',
     'global_live_hud'
@@ -164,8 +171,19 @@ for rel in app/Support/LocalProjectStatus.php app/Livewire/LocalServerVitals.php
   docker exec "$CONTAINER" php -l "$ROOT/$rel"
 done
 
+docker exec "$CONTAINER" grep -q 'diskTotalGiB' "$ROOT/app/Livewire/LocalServerVitals.php"
+docker exec "$CONTAINER" grep -q 'local-vitals-disk' "$ROOT/resources/views/livewire/local-server-vitals.blade.php"
+docker exec "$CONTAINER" grep -q 'wire:poll.15s' "$ROOT/resources/views/livewire/local-server-vitals.blade.php"
+
 docker exec "$CONTAINER" php artisan optimize:clear >/dev/null
 docker exec "$CONTAINER" php artisan view:cache >/dev/null
+
+# Validate the same root-filesystem source used by the Livewire component.
+docker exec "$CONTAINER" php -r '
+$t=(float)(disk_total_space("/")?:0);$f=(float)(disk_free_space("/")?:0);$f=min($t,max(0,$f));$u=max(0,$t-$f);
+if($t<=0||$u<0||$f<0){fwrite(STDERR,"invalid disk metrics\n");exit(1);}
+echo "disk_total_gib=".round($t/1073741824,1)." disk_used_gib=".round($u/1073741824,1)." disk_free_gib=".round($f/1073741824,1)."\n";
+'
 
 docker restart "$CONTAINER" >/dev/null
 for _ in $(seq 1 60); do
@@ -178,7 +196,7 @@ done
 [[ "$(docker exec "$CONTAINER" grep -c 'Project status:' "$ROOT/resources/views/livewire/dashboard.blade.php")" -ge 1 ]]
 [[ "$(docker exec "$CONTAINER" grep -c 'project.statusLabel' "$ROOT/resources/views/livewire/project/index.blade.php")" -ge 1 ]]
 
-echo "PASS: dashboard observability applied"
+echo "PASS: dashboard observability applied (CPU/RAM/DISK/load + project status)"
 echo "Backup: $BACKUP"
 trap - EXIT
 rm -rf "$WORK"

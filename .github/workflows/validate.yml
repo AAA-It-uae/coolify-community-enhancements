@@ -29,3 +29,7 @@ jobs:
         run: |
           php -l dashboard-observability/files/LocalProjectStatus.php
           php -l dashboard-observability/files/LocalServerVitals.php
+
+      - name: Validate required public assets
+        run: |
+          test -f assets/screenshots/server-vitals-cpu-ram-disk.png
