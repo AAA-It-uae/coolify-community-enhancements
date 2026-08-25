@@ -19,6 +19,10 @@ jobs:
           bash -n dashboard-observability/install.sh
           bash -n dashboard-performance/install.sh
 
+      - name: Validate required public assets
+        run: |
+          test -f assets/screenshots/server-vitals-cpu-ram-disk.png
+
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
