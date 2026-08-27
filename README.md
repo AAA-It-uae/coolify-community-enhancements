@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/coollabsio/coolify"><img src="https://img.shields.io/badge/Coolify-4.3.10-tested-7c3aed?style=flat-square" alt="Tested on Coolify 4.3.10"></a>
+  <a href="https://github.com/coollabsio/coolify"><img src="https://img.shields.io/badge/Coolify-4.3.10%20tested-7c3aed?style=flat-square" alt="Tested on Coolify 4.3.10"></a>
   <a href="https://github.com/AAA-It-uae/coolify-community-enhancements/actions"><img src="https://img.shields.io/badge/CI-validated-16a34a?style=flat-square" alt="CI validated"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square" alt="MIT License"></a>
 </p>
