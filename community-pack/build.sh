@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+OUT="${1:-$SCRIPT_DIR/.build/coolify-v4.3.14}"
+UPSTREAM_TAG='v4.3.14'
+UPSTREAM_SHA='51a8a97d876cdbd6beeced554dbb8b4bec5a3bb4'
+PROJECT_UX_SHA='e24a963ad80001475f379caaf5fd9e4252ca3c28'
+
+command -v git >/dev/null
+command -v python3 >/dev/null
+command -v curl >/dev/null
+
+rm -rf "$OUT"
+mkdir -p "$(dirname "$OUT")"
+git clone --quiet --depth 1 --branch "$UPSTREAM_TAG" https://github.com/coollabsio/coolify.git "$OUT"
+cd "$OUT"
+
+[[ "$(git rev-parse HEAD)" == "$UPSTREAM_SHA" ]] || {
+    echo 'Upstream tag moved. Aborting.' >&2
+    exit 50
+}
+
+git config user.name 'community-pack-builder'
+git config user.email 'actions@users.noreply.github.com'
+git fetch --quiet --depth=2 https://github.com/mtalavi/coolify.git "$PROJECT_UX_SHA"
+git cherry-pick --no-commit FETCH_HEAD >/dev/null
+
+git restore --staged --worktree tests/Feature/ProjectDashboardUxTest.php 2>/dev/null || true
+
+python3 - app/Support/ProjectDomainAggregator.php <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+s = s.replace("'project-dashboard-domains:v1:'", "'project-dashboard-domains:v2:'", 1)
+s = s.replace(
+    'return Cache::remember($cacheKey, 10, function () use ($projects, $projectIds): array {',
+    'return Cache::remember($cacheKey, 60, function () use ($projects, $projectIds): array {',
+    1,
+)
+anchor = '''            foreach ($applications as $application) {\n                $projectId = (int) $application->project_id;\n                self::addRawDomains($byProjectId[$projectId], $application->fqdn);\n                self::addComposeDomains($byProjectId[$projectId], $application->docker_compose_domains);\n            }\n\n'''
+insert = anchor + '''            $composeRoutedApplications = DB::table('applications')\n                ->join('environments', 'environments.id', '=', 'applications.environment_id')\n                ->whereIn('environments.project_id', $projectIds)\n                ->whereNull('applications.deleted_at')\n                ->where('applications.build_pack', 'dockercompose')\n                ->whereNotNull('applications.docker_compose_raw')\n                ->where('applications.docker_compose_raw', 'like', '%traefik.http.routers.%')\n                ->get([\n                    'environments.project_id as project_id',\n                    'applications.docker_compose_raw as docker_compose_raw',\n                ]);\n\n            foreach ($composeRoutedApplications as $application) {\n                $projectId = (int) $application->project_id;\n                self::addTraefikHostRules($byProjectId[$projectId], $application->docker_compose_raw);\n            }\n\n'''
+if anchor not in s:
+    raise SystemExit('Domain aggregation anchor changed upstream.')
+s = s.replace(anchor, insert, 1)
+method_anchor = '''    private static function addOne(array &$bucket, mixed $raw): void\n'''
+method = '''    private static function addTraefikHostRules(array &$bucket, mixed $raw): void\n    {\n        if (! is_string($raw) || $raw === '') {\n            return;\n        }\n\n        $matches = [];\n        preg_match_all("/Host\\(\\s*[`\\\"']([^`\\\"']+)[`\\\"']\\s*\\)/i", $raw, $matches);\n        foreach ($matches[1] ?? [] as $host) {\n            $host = strtolower(trim((string) $host));\n            if ($host === '' || str_contains($host, '*') || str_contains($host, '{')) {\n                continue;\n            }\n            self::addOne($bucket, 'https://'.$host);\n        }\n    }\n\n'''
+if method_anchor not in s:
+    raise SystemExit('Domain helper anchor changed upstream.')
+s = s.replace(method_anchor, method + method_anchor, 1)
+p.write_text(s)
+PY
+
+python3 - resources/views/livewire/project/index.blade.php resources/views/livewire/dashboard.blade.php <<'PY'
+from pathlib import Path
+import sys
+project = Path(sys.argv[1])
+s = project.read_text()
+old = ": 'color:#525252;background:rgba(115,115,115,.05);border-color:rgba(115,115,115,.18)'"
+new = ": project.statusLabel === 'Stopped' ? 'color:#525252;background:rgba(115,115,115,.05);border-color:rgba(239,68,68,.48)' : 'color:#525252;background:rgba(115,115,115,.05);border-color:rgba(115,115,115,.18)'"
+if s.count(old) < 2:
+    raise SystemExit('Project status style anchor changed upstream.')
+project.write_text(s.replace(old, new))
+
+dash = Path(sys.argv[2])
+s = dash.read_text()
+anchor = """                                            default => ['#525252', '#a3a3a3', 'rgba(115,115,115,.05)', 'rgba(115,115,115,.18)'],\n                                        };\n                                    @endphp"""
+replacement = """                                            default => ['#525252', '#a3a3a3', 'rgba(115,115,115,.05)', 'rgba(115,115,115,.18)'],\n                                        };\n                                        if (($projectStatus['label'] ?? '') === 'Stopped') {\n                                            $statusBorder = 'rgba(239,68,68,.48)';\n                                        }\n                                    @endphp"""
+if anchor not in s:
+    raise SystemExit('Dashboard status style anchor changed upstream.')
+dash.write_text(s.replace(anchor, replacement, 1))
+PY
+
+mkdir -p app/Livewire resources/views/livewire resources/views/components
+cp "$REPO_ROOT/dashboard-observability/files/LocalServerVitals.php" app/Livewire/LocalServerVitals.php
+cp "$REPO_ROOT/dashboard-observability/files/local-server-vitals.blade.php" resources/views/livewire/local-server-vitals.blade.php
+cp "$REPO_ROOT/interactive-magnifier/files/local-magnifier.blade.php" resources/views/components/local-magnifier.blade.php
+
+python3 - resources/views/layouts/app.blade.php <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+anchor = '''                    {{-- Dev Server-Timing HUD docks here (local only; empty in production) --}}\n'''
+insert = '''                    <x-local-magnifier />\n                    @if (isInstanceAdmin() && ! isCloud())\n                        <livewire:local-server-vitals />\n                    @endif\n                    {{-- Dev Server-Timing HUD docks here (local only; empty in production) --}}\n'''
+if s.count(anchor) != 1:
+    raise SystemExit('Top-bar anchor changed upstream.')
+if '<livewire:local-server-vitals' in s or '<x-local-magnifier' in s:
+    raise SystemExit('Community pack markers already exist.')
+p.write_text(s.replace(anchor, insert, 1))
+PY
+
+python3 - resources/views/livewire/deployments-indicator.blade.php resources/views/livewire/dashboard/active-deployments.blade.php <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+old = '<div wire:poll.3000ms x-on:livewire:navigated.window="'
+new = '<div @if ($this->deploymentCount > 0) wire:poll.5000ms @else wire:poll.60000ms @endif x-on:livewire:navigated.window="'
+if s.count(old) != 1:
+    raise SystemExit('Deployment polling anchor changed upstream.')
+p.write_text(s.replace(old, new, 1))
+
+p = Path(sys.argv[2])
+s = p.read_text()
+old = '<div wire:poll.3000ms="refreshDeployments" @class(['
+new = '<div @if ($hasActiveDeployments) wire:poll.5000ms="refreshDeployments" @else wire:poll.60000ms="refreshDeployments" @endif @class(['
+if s.count(old) != 1:
+    raise SystemExit('Active deployment polling anchor changed upstream.')
+p.write_text(s.replace(old, new, 1))
+PY
+
+for file in \
+    app/Livewire/Dashboard.php \
+    app/Livewire/LocalServerVitals.php \
+    app/Livewire/Project/Index.php \
+    app/Support/ProjectDomainAggregator.php \
+    app/Support/ProjectStatusAggregator.php; do
+    if command -v php >/dev/null; then
+        php -l "$file" >/dev/null
+    fi
+done
+
+grep -q "value: 'running'" resources/views/livewire/project/index.blade.php
+grep -q 'project.domains' resources/views/livewire/project/index.blade.php
+grep -q '<livewire:local-server-vitals' resources/views/layouts/app.blade.php
+grep -q '<x-local-magnifier' resources/views/layouts/app.blade.php
+grep -q 'wire:poll.15s="refreshVitals"' resources/views/livewire/local-server-vitals.blade.php
+grep -q 'wire:poll.60000ms' resources/views/livewire/deployments-indicator.blade.php
+grep -q 'wire:poll.60000ms="refreshDeployments"' resources/views/livewire/dashboard/active-deployments.blade.php
+
+git add -A
+expected="$(cat <<'EOF'
+app/Livewire/Dashboard.php
+app/Livewire/LocalServerVitals.php
+app/Livewire/Project/Index.php
+app/Support/ProjectDomainAggregator.php
+app/Support/ProjectStatusAggregator.php
+resources/views/components/local-magnifier.blade.php
+resources/views/layouts/app.blade.php
+resources/views/livewire/dashboard.blade.php
+resources/views/livewire/dashboard/active-deployments.blade.php
+resources/views/livewire/deployments-indicator.blade.php
+resources/views/livewire/local-server-vitals.blade.php
+resources/views/livewire/project/index.blade.php
+EOF
+)"
+actual="$(git diff --cached --name-only | sort)"
+[[ "$actual" == "$(printf '%s\n' "$expected" | sort)" ]] || {
+    echo 'Unexpected file set:' >&2
+    printf '%s\n' "$actual" >&2
+    exit 51
+}
+
+git diff --cached --check
+printf 'Community pack build OK: Coolify %s (%s)\n' "$UPSTREAM_TAG" "$UPSTREAM_SHA"
+printf 'Output: %s\n' "$OUT"
