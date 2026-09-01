@@ -34,22 +34,30 @@ from pathlib import Path
 import sys
 p = Path(sys.argv[1])
 s = p.read_text()
-s = s.replace("'project-dashboard-domains:v1:'", "'project-dashboard-domains:v2:'", 1)
+s = s.replace("'project-dashboard-domains:v1:'", "'project-dashboard-domains:v3:'", 1)
 s = s.replace(
     'return Cache::remember($cacheKey, 10, function () use ($projects, $projectIds): array {',
-    'return Cache::remember($cacheKey, 60, function () use ($projects, $projectIds): array {',
+    'return Cache::remember($cacheKey, 5, function () use ($projects, $projectIds): array {',
     1,
 )
-anchor = '''            foreach ($applications as $application) {\n                $projectId = (int) $application->project_id;\n                self::addRawDomains($byProjectId[$projectId], $application->fqdn);\n                self::addComposeDomains($byProjectId[$projectId], $application->docker_compose_domains);\n            }\n\n'''
-insert = anchor + '''            $composeRoutedApplications = DB::table('applications')\n                ->join('environments', 'environments.id', '=', 'applications.environment_id')\n                ->whereIn('environments.project_id', $projectIds)\n                ->whereNull('applications.deleted_at')\n                ->where('applications.build_pack', 'dockercompose')\n                ->whereNotNull('applications.docker_compose_raw')\n                ->where('applications.docker_compose_raw', 'like', '%traefik.http.routers.%')\n                ->get([\n                    'environments.project_id as project_id',\n                    'applications.docker_compose_raw as docker_compose_raw',\n                ]);\n\n            foreach ($composeRoutedApplications as $application) {\n                $projectId = (int) $application->project_id;\n                self::addTraefikHostRules($byProjectId[$projectId], $application->docker_compose_raw);\n            }\n\n'''
-if anchor not in s:
-    raise SystemExit('Domain aggregation anchor changed upstream.')
-s = s.replace(anchor, insert, 1)
-method_anchor = '''    private static function addOne(array &$bucket, mixed $raw): void\n'''
-method = '''    private static function addTraefikHostRules(array &$bucket, mixed $raw): void\n    {\n        if (! is_string($raw) || $raw === '') {\n            return;\n        }\n\n        $matches = [];\n        preg_match_all("/Host\\(\\s*[`\\\"']([^`\\\"']+)[`\\\"']\\s*\\)/i", $raw, $matches);\n        foreach ($matches[1] ?? [] as $host) {\n            $host = strtolower(trim((string) $host));\n            if ($host === '' || str_contains($host, '*') || str_contains($host, '{')) {\n                continue;\n            }\n            self::addOne($bucket, 'https://'.$host);\n        }\n    }\n\n'''
+
+select_anchor = '''                    'environments.project_id as project_id',\n                    'applications.fqdn as fqdn',\n                    'applications.docker_compose_domains as docker_compose_domains',\n'''
+select_replacement = '''                    'environments.project_id as project_id',\n                    'applications.build_pack as build_pack',\n                    'applications.fqdn as fqdn',\n                    'applications.docker_compose_domains as docker_compose_domains',\n'''
+if select_anchor not in s:
+    raise SystemExit('Domain application select anchor changed upstream.')
+s = s.replace(select_anchor, select_replacement, 1)
+
+loop_anchor = '''            foreach ($applications as $application) {\n                $projectId = (int) $application->project_id;\n                self::addRawDomains($byProjectId[$projectId], $application->fqdn);\n                self::addComposeDomains($byProjectId[$projectId], $application->docker_compose_domains);\n            }\n\n'''
+loop_replacement = '''            foreach ($applications as $application) {\n                $projectId = (int) $application->project_id;\n                if ($application->build_pack === 'dockercompose') {\n                    self::addComposeDomains($byProjectId[$projectId], $application->docker_compose_domains);\n                } else {\n                    self::addRawDomains($byProjectId[$projectId], $application->fqdn);\n                }\n            }\n\n'''
+if loop_anchor not in s:
+    raise SystemExit('Domain aggregation loop anchor changed upstream.')
+s = s.replace(loop_anchor, loop_replacement, 1)
+
+method_anchor = '''    private static function addComposeDomains(array &$bucket, mixed $raw): void\n    {\n        if (! is_string($raw) || trim($raw) === '') {\n            return;\n        }\n\n        $decoded = json_decode($raw, true);\n        if (! is_array($decoded)) {\n            return;\n        }\n\n        array_walk_recursive($decoded, function ($value) use (&$bucket): void {\n            if (is_string($value)) {\n                self::addRawDomains($bucket, $value);\n            }\n        });\n    }\n\n'''
+method_replacement = '''    private static function addComposeDomains(array &$bucket, mixed $raw): void\n    {\n        if (! is_string($raw) || trim($raw) === '') {\n            return;\n        }\n\n        $decoded = json_decode($raw, true);\n        if (! is_array($decoded)) {\n            return;\n        }\n\n        foreach ($decoded as $entry) {\n            if (! is_array($entry)) {\n                continue;\n            }\n\n            $domainString = $entry['domain'] ?? null;\n            if (is_string($domainString)) {\n                self::addRawDomains($bucket, $domainString);\n            }\n        }\n    }\n\n'''
 if method_anchor not in s:
-    raise SystemExit('Domain helper anchor changed upstream.')
-s = s.replace(method_anchor, method + method_anchor, 1)
+    raise SystemExit('Compose domain helper anchor changed upstream.')
+s = s.replace(method_anchor, method_replacement, 1)
 p.write_text(s)
 PY
 
@@ -130,6 +138,11 @@ grep -q '<x-local-magnifier' resources/views/layouts/app.blade.php
 grep -q 'wire:poll.15s="refreshVitals"' resources/views/livewire/local-server-vitals.blade.php
 grep -q 'wire:poll.60000ms' resources/views/livewire/deployments-indicator.blade.php
 grep -q 'wire:poll.60000ms="refreshDeployments"' resources/views/livewire/dashboard/active-deployments.blade.php
+grep -q "'applications.build_pack as build_pack'" app/Support/ProjectDomainAggregator.php
+grep -q "if (\$application->build_pack === 'dockercompose')" app/Support/ProjectDomainAggregator.php
+grep -Fq '$domainString = $entry['"'"'domain'"'"'] ?? null;' app/Support/ProjectDomainAggregator.php
+! grep -q 'addTraefikHostRules' app/Support/ProjectDomainAggregator.php
+! grep -q 'array_walk_recursive' app/Support/ProjectDomainAggregator.php
 
 git add -A
 expected="$(cat <<'EOF'
