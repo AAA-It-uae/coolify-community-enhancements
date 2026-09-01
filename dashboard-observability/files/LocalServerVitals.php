@@ -3,10 +3,15 @@
 namespace App\Livewire;
 
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
 class LocalServerVitals extends Component
 {
+    private const CPU_SAMPLE_KEY = 'community-pack:local-vitals:cpu-sample:v2';
+
+    private const CPU_PERCENT_KEY = 'community-pack:local-vitals:cpu-percent:v2';
+
     public int $cores = 0;
     public float $cpuPercent = 0;
     public float $cpuFreePercent = 100;
@@ -23,33 +28,21 @@ class LocalServerVitals extends Component
     public float $load1 = 0;
     public float $load5 = 0;
     public float $load15 = 0;
-    public ?int $previousTotalTicks = null;
-    public ?int $previousIdleTicks = null;
 
     public function mount(): void
     {
-        $this->readVitals(false);
+        $this->readVitals();
     }
 
     public function refreshVitals(): void
     {
-        $this->readVitals(true);
+        $this->readVitals();
     }
 
-    private function readVitals(bool $calculateCpu): void
+    private function readVitals(): void
     {
-        [$totalTicks, $idleTicks] = $this->cpuTicks();
-
-        if ($calculateCpu && $this->previousTotalTicks !== null && $totalTicks > $this->previousTotalTicks) {
-            $deltaTotal = $totalTicks - $this->previousTotalTicks;
-            $deltaIdle = $idleTicks - (int) $this->previousIdleTicks;
-            $busy = max(0, $deltaTotal - $deltaIdle);
-            $this->cpuPercent = round(min(100, ($busy / $deltaTotal) * 100), 1);
-        }
+        $this->cpuPercent = $this->cpuUsagePercent();
         $this->cpuFreePercent = round(max(0, 100 - $this->cpuPercent), 1);
-
-        $this->previousTotalTicks = $totalTicks;
-        $this->previousIdleTicks = $idleTicks;
 
         $cpuInfo = @file_get_contents('/proc/cpuinfo') ?: '';
         preg_match_all('/^processor\s*:/m', $cpuInfo, $matches);
@@ -83,6 +76,59 @@ class LocalServerVitals extends Component
         $this->load1 = round((float) ($load[0] ?? 0), 2);
         $this->load5 = round((float) ($load[1] ?? 0), 2);
         $this->load15 = round((float) ($load[2] ?? 0), 2);
+    }
+
+    private function cpuUsagePercent(): float
+    {
+        $current = $this->cpuSample();
+        $previous = Cache::get(self::CPU_SAMPLE_KEY);
+        $lastPercent = (float) Cache::get(self::CPU_PERCENT_KEY, 0.0);
+
+        if (is_array($previous)
+            && isset($previous['total'], $previous['idle'], $previous['time'])) {
+            $elapsed = $current['time'] - (float) $previous['time'];
+            $deltaTotal = $current['total'] - (int) $previous['total'];
+            $deltaIdle = $current['idle'] - (int) $previous['idle'];
+
+            if ($elapsed >= 0.25 && $deltaTotal > 0) {
+                $busy = max(0, $deltaTotal - $deltaIdle);
+                $percent = round(min(100, ($busy / $deltaTotal) * 100), 1);
+                Cache::put(self::CPU_SAMPLE_KEY, $current, now()->addMinutes(5));
+                Cache::put(self::CPU_PERCENT_KEY, $percent, now()->addMinutes(5));
+
+                return $percent;
+            }
+
+            return round(max(0, min(100, $lastPercent)), 1);
+        }
+
+        // Only the first sample after the shared cache expires needs a short local interval.
+        usleep(200000);
+        $second = $this->cpuSample();
+        $deltaTotal = $second['total'] - $current['total'];
+        $deltaIdle = $second['idle'] - $current['idle'];
+        $percent = 0.0;
+
+        if ($deltaTotal > 0) {
+            $busy = max(0, $deltaTotal - $deltaIdle);
+            $percent = round(min(100, ($busy / $deltaTotal) * 100), 1);
+        }
+
+        Cache::put(self::CPU_SAMPLE_KEY, $second, now()->addMinutes(5));
+        Cache::put(self::CPU_PERCENT_KEY, $percent, now()->addMinutes(5));
+
+        return $percent;
+    }
+
+    private function cpuSample(): array
+    {
+        [$total, $idle] = $this->cpuTicks();
+
+        return [
+            'total' => $total,
+            'idle' => $idle,
+            'time' => microtime(true),
+        ];
     }
 
     private function cpuTicks(): array
