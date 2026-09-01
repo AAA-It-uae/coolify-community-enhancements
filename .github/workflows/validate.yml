@@ -18,6 +18,8 @@ jobs:
         run: |
           bash -n dashboard-observability/install.sh
           bash -n dashboard-performance/install.sh
+          bash -n community-pack/build.sh
+          bash -n community-pack/install.sh
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
@@ -30,6 +32,17 @@ jobs:
           php -l dashboard-observability/files/LocalProjectStatus.php
           php -l dashboard-observability/files/LocalServerVitals.php
 
+      - name: Build pack against exact Coolify 4.3.14 source
+        run: |
+          bash community-pack/build.sh "$RUNNER_TEMP/coolify-v4.3.14"
+          test "$(git -C "$RUNNER_TEMP/coolify-v4.3.14" rev-parse HEAD)" = "51a8a97d876cdbd6beeced554dbb8b4bec5a3bb4"
+          test "$(git -C "$RUNNER_TEMP/coolify-v4.3.14" diff --cached --name-only | wc -l)" -eq 12
+
       - name: Validate required public assets
         run: |
           test -f assets/screenshots/server-vitals-cpu-ram-disk.png
+          test -f assets/screenshots/project-running-domain.webp
+          test -f assets/screenshots/project-stopped-status.webp
+          test -f assets/screenshots/running-first-sort.webp
+          test -f assets/screenshots/interactive-magnifier.png
+          test -f interactive-magnifier/files/local-magnifier.blade.php
