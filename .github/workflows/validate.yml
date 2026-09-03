@@ -2,11 +2,15 @@ name: Validate
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'compat/**']
   pull_request:
 
 permissions:
   contents: read
+
+env:
+  COOLIFY_TAG: v4.3.15
+  COOLIFY_SHA: b8866b87e8e855e041c21330352ca615521afed3
 
 jobs:
   validate:
@@ -32,11 +36,12 @@ jobs:
           php -l dashboard-observability/files/LocalProjectStatus.php
           php -l dashboard-observability/files/LocalServerVitals.php
 
-      - name: Build pack against exact Coolify 4.3.14 source
+      - name: Build pack against exact Coolify 4.3.15 source
         run: |
-          bash community-pack/build.sh "$RUNNER_TEMP/coolify-v4.3.14"
-          test "$(git -C "$RUNNER_TEMP/coolify-v4.3.14" rev-parse HEAD)" = "51a8a97d876cdbd6beeced554dbb8b4bec5a3bb4"
-          test "$(git -C "$RUNNER_TEMP/coolify-v4.3.14" diff --cached --name-only | wc -l)" -eq 12
+          bash community-pack/build.sh "$RUNNER_TEMP/coolify-v4.3.15"
+          test "$(git -C "$RUNNER_TEMP/coolify-v4.3.15" rev-parse HEAD)" = "$COOLIFY_SHA"
+          test "$(git -C "$RUNNER_TEMP/coolify-v4.3.15" diff --cached --name-only | wc -l)" -eq 12
+          git -C "$RUNNER_TEMP/coolify-v4.3.15" diff --cached --check
 
       - name: Validate required public assets
         run: |
@@ -46,3 +51,56 @@ jobs:
           test -f assets/screenshots/running-first-sort.webp
           test -f assets/screenshots/interactive-magnifier.png
           test -f interactive-magnifier/files/local-magnifier.blade.php
+
+  dev-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build patched exact-source worktree
+        run: |
+          bash community-pack/build.sh "$RUNNER_TEMP/coolify-v4.3.15"
+          test "$(git -C "$RUNNER_TEMP/coolify-v4.3.15" rev-parse HEAD)" = "$COOLIFY_SHA"
+
+      - name: Prepare official development environment
+        working-directory: ${{ runner.temp }}/coolify-v4.3.15
+        run: |
+          cp .env.development.example .env
+          printf '\nDEV_BIND_ADDRESS=127.0.0.1\nAPP_PORT=18000\nFORWARD_DB_PORT=15432\nFORWARD_REDIS_PORT=16379\nFORWARD_SOKETI_PORT=16001\nFORWARD_MAILPIT_PORT=11025\nFORWARD_MAILPIT_DASHBOARD_PORT=18025\nFORWARD_MINIO_PORT=19000\nFORWARD_MINIO_PORT_CONSOLE=19001\n' >> .env
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet
+
+      - name: Start isolated official Coolify development stack
+        working-directory: ${{ runner.temp }}/coolify-v4.3.15
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build postgres redis soketi coolify
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:18000/api/health >/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml ps
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml logs --no-color --tail=200 coolify postgres redis soketi
+          exit 1
+
+      - name: Validate patched features inside dev container
+        working-directory: ${{ runner.temp }}/coolify-v4.3.15
+        run: |
+          test "$(docker inspect -f '{{.State.Health.Status}}' coolify)" = healthy
+          test "$(docker inspect -f '{{.State.Health.Status}}' coolify-db)" = healthy
+          test "$(docker inspect -f '{{.State.Health.Status}}' coolify-redis)" = healthy
+          grep -q '<livewire:local-server-vitals' resources/views/layouts/app.blade.php
+          grep -q '<x-local-magnifier' resources/views/layouts/app.blade.php
+          grep -q 'wire:poll.60000ms' resources/views/livewire/deployments-indicator.blade.php
+          curl -fsS http://127.0.0.1:18000/api/health
+
+      - name: Development stack logs on failure
+        if: failure()
+        working-directory: ${{ runner.temp }}/coolify-v4.3.15
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml logs --no-color --tail=300 || true
+
+      - name: Tear down isolated development stack
+        if: always()
+        working-directory: ${{ runner.temp }}/coolify-v4.3.15
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v --remove-orphans || true
