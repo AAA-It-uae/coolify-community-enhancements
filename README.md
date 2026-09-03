@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/coollabsio/coolify/releases/tag/v4.3.14"><img src="https://img.shields.io/badge/Coolify-4.3.14%20tested-7c3aed?style=flat-square" alt="Tested on Coolify 4.3.14"></a>
+  <a href="https://github.com/coollabsio/coolify/releases/tag/v4.3.15"><img src="https://img.shields.io/badge/Coolify-4.3.15%20tested-7c3aed?style=flat-square" alt="Tested on Coolify 4.3.15"></a>
   <a href="https://github.com/AAA-It-uae/coolify-community-enhancements/actions"><img src="https://img.shields.io/badge/CI-validated-16a34a?style=flat-square" alt="CI validated"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square" alt="MIT License"></a>
 </p>
@@ -14,7 +14,7 @@ I manage enough projects that the stock dashboard started making me open too man
 
 This repo is my small community pack for fixing that.
 
-The current pack is built specifically for **Coolify 4.3.14** and adds:
+The current pack is built specifically for **Coolify 4.3.15** and adds:
 
 - project status directly on cards
 - active clickable domains
@@ -65,8 +65,8 @@ Earlier testing on one 22-project Coolify installation also showed how much repe
 
 ## Compatibility and safety
 
-Current target: `v4.3.14`  
-Official source commit: `51a8a97d876cdbd6beeced554dbb8b4bec5a3bb4`
+Current target: `v4.3.15`  
+Official source commit: `b8866b87e8e855e041c21330352ca615521afed3`
 
 This is a community-maintained modification, not an official Coolify feature. Coolify updates replace container-level customizations, so the installer refuses versions it has not been adapted and validated against.
 
