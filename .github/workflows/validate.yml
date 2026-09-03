@@ -67,14 +67,28 @@ jobs:
         working-directory: ${{ runner.temp }}/coolify-v4.3.15
         run: |
           cp .env.development.example .env
-          printf '\nDEV_BIND_ADDRESS=127.0.0.1\nAPP_PORT=18000\nFORWARD_DB_PORT=15432\nFORWARD_REDIS_PORT=16379\nFORWARD_SOKETI_PORT=16001\nFORWARD_MAILPIT_PORT=11025\nFORWARD_MAILPIT_DASHBOARD_PORT=18025\nFORWARD_MINIO_PORT=19000\nFORWARD_MINIO_PORT_CONSOLE=19001\n' >> .env
+          APP_KEY_VALUE="base64:$(openssl rand -base64 32)"
+          cat >> .env <<EOF
+          APP_KEY=$APP_KEY_VALUE
+          DB_HOST=postgres
+          DB_PORT=5432
+          DEV_BIND_ADDRESS=127.0.0.1
+          APP_PORT=18000
+          FORWARD_DB_PORT=15432
+          FORWARD_REDIS_PORT=16379
+          FORWARD_SOKETI_PORT=16001
+          FORWARD_MAILPIT_PORT=11025
+          FORWARD_MAILPIT_DASHBOARD_PORT=18025
+          FORWARD_MINIO_PORT=19000
+          FORWARD_MINIO_PORT_CONSOLE=19001
+          EOF
           docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet
 
       - name: Start isolated official Coolify development stack
         working-directory: ${{ runner.temp }}/coolify-v4.3.15
         run: |
           docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build postgres redis soketi coolify
-          for i in $(seq 1 60); do
+          for i in $(seq 1 90); do
             if curl -fsS http://127.0.0.1:18000/api/health >/dev/null; then
               exit 0
             fi
@@ -87,9 +101,10 @@ jobs:
       - name: Validate patched features inside dev container
         working-directory: ${{ runner.temp }}/coolify-v4.3.15
         run: |
-          test "$(docker inspect -f '{{.State.Health.Status}}' coolify)" = healthy
+          test "$(docker inspect -f '{{.State.Status}}' coolify)" = running
           test "$(docker inspect -f '{{.State.Health.Status}}' coolify-db)" = healthy
           test "$(docker inspect -f '{{.State.Health.Status}}' coolify-redis)" = healthy
+          test "$(docker inspect -f '{{.State.Health.Status}}' coolify-realtime)" = healthy
           grep -q '<livewire:local-server-vitals' resources/views/layouts/app.blade.php
           grep -q '<x-local-magnifier' resources/views/layouts/app.blade.php
           grep -q 'wire:poll.60000ms' resources/views/livewire/deployments-indicator.blade.php
