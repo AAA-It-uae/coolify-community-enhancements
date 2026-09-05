@@ -3,9 +3,9 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-OUT="${1:-$SCRIPT_DIR/.build/coolify-v4.3.15}"
-UPSTREAM_TAG='v4.3.15'
-UPSTREAM_SHA='b8866b87e8e855e041c21330352ca615521afed3'
+OUT="${1:-$SCRIPT_DIR/.build/coolify-v4.3.17}"
+UPSTREAM_TAG='v4.3.17'
+UPSTREAM_SHA='5ff21103974a30e107ce046190fb478658a214e7'
 PROJECT_UX_SHA='e24a963ad80001475f379caaf5fd9e4252ca3c28'
 
 command -v git >/dev/null
