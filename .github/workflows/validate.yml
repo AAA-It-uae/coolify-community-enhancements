@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 env:
-  COOLIFY_TAG: v4.3.15
-  COOLIFY_SHA: b8866b87e8e855e041c21330352ca615521afed3
+  COOLIFY_TAG: v4.3.17
+  COOLIFY_SHA: 5ff21103974a30e107ce046190fb478658a214e7
 
 jobs:
   validate:
@@ -36,12 +36,12 @@ jobs:
           php -l dashboard-observability/files/LocalProjectStatus.php
           php -l dashboard-observability/files/LocalServerVitals.php
 
-      - name: Build pack against exact Coolify 4.3.15 source
+      - name: Build pack against exact Coolify 4.3.17 source
         run: |
-          bash community-pack/build.sh "$RUNNER_TEMP/coolify-v4.3.15"
-          test "$(git -C "$RUNNER_TEMP/coolify-v4.3.15" rev-parse HEAD)" = "$COOLIFY_SHA"
-          test "$(git -C "$RUNNER_TEMP/coolify-v4.3.15" diff --cached --name-only | wc -l)" -eq 12
-          git -C "$RUNNER_TEMP/coolify-v4.3.15" diff --cached --check
+          bash community-pack/build.sh "$RUNNER_TEMP/coolify-v4.3.17"
+          test "$(git -C "$RUNNER_TEMP/coolify-v4.3.17" rev-parse HEAD)" = "$COOLIFY_SHA"
+          test "$(git -C "$RUNNER_TEMP/coolify-v4.3.17" diff --cached --name-only | wc -l)" -eq 12
+          git -C "$RUNNER_TEMP/coolify-v4.3.17" diff --cached --check
 
       - name: Validate required public assets
         run: |
@@ -60,11 +60,11 @@ jobs:
 
       - name: Build patched exact-source worktree
         run: |
-          bash community-pack/build.sh "$RUNNER_TEMP/coolify-v4.3.15"
-          test "$(git -C "$RUNNER_TEMP/coolify-v4.3.15" rev-parse HEAD)" = "$COOLIFY_SHA"
+          bash community-pack/build.sh "$RUNNER_TEMP/coolify-v4.3.17"
+          test "$(git -C "$RUNNER_TEMP/coolify-v4.3.17" rev-parse HEAD)" = "$COOLIFY_SHA"
 
       - name: Prepare official development environment
-        working-directory: ${{ runner.temp }}/coolify-v4.3.15
+        working-directory: ${{ runner.temp }}/coolify-v4.3.17
         run: |
           cp .env.development.example .env
           APP_KEY_VALUE="base64:$(openssl rand -base64 32)"
@@ -85,7 +85,7 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet
 
       - name: Start isolated official Coolify development stack
-        working-directory: ${{ runner.temp }}/coolify-v4.3.15
+        working-directory: ${{ runner.temp }}/coolify-v4.3.17
         run: |
           docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build postgres redis soketi coolify
           for i in $(seq 1 90); do
@@ -99,7 +99,7 @@ jobs:
           exit 1
 
       - name: Validate patched features inside dev container
-        working-directory: ${{ runner.temp }}/coolify-v4.3.15
+        working-directory: ${{ runner.temp }}/coolify-v4.3.17
         run: |
           test "$(docker inspect -f '{{.State.Status}}' coolify)" = running
           test "$(docker inspect -f '{{.State.Health.Status}}' coolify-db)" = healthy
@@ -112,10 +112,10 @@ jobs:
 
       - name: Development stack logs on failure
         if: failure()
-        working-directory: ${{ runner.temp }}/coolify-v4.3.15
+        working-directory: ${{ runner.temp }}/coolify-v4.3.17
         run: docker compose -f docker-compose.yml -f docker-compose.dev.yml logs --no-color --tail=300 || true
 
       - name: Tear down isolated development stack
         if: always()
-        working-directory: ${{ runner.temp }}/coolify-v4.3.15
+        working-directory: ${{ runner.temp }}/coolify-v4.3.17
         run: docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v --remove-orphans || true
