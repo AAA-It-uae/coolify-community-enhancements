@@ -25,7 +25,7 @@ cd "$OUT"
 git config user.name 'community-pack-builder'
 git config user.email 'actions@users.noreply.github.com'
 git fetch --quiet --depth=2 https://github.com/mtalavi/coolify.git "$PROJECT_UX_SHA"
-git cherry-pick --no-commit FETCH_HEAD >/dev/null
+git cherry-pick -X theirs --no-commit FETCH_HEAD >/dev/null
 
 git restore --staged --worktree tests/Feature/ProjectDashboardUxTest.php 2>/dev/null || true
 
