@@ -3,9 +3,9 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-OUT="${1:-$SCRIPT_DIR/.build/coolify-v4.3.17}"
-UPSTREAM_TAG='v4.3.17'
-UPSTREAM_SHA='5ff21103974a30e107ce046190fb478658a214e7'
+OUT="${1:-$SCRIPT_DIR/.build/coolify-v4.3.18}"
+UPSTREAM_TAG='v4.3.18'
+UPSTREAM_SHA='abc701ac6503afc602661fcfc52e0c455f289e73'
 PROJECT_UX_SHA='e24a963ad80001475f379caaf5fd9e4252ca3c28'
 
 command -v git >/dev/null
@@ -25,7 +25,7 @@ cd "$OUT"
 git config user.name 'community-pack-builder'
 git config user.email 'actions@users.noreply.github.com'
 git fetch --quiet --depth=2 https://github.com/mtalavi/coolify.git "$PROJECT_UX_SHA"
-git cherry-pick --no-commit FETCH_HEAD >/dev/null
+git cherry-pick -X theirs --no-commit FETCH_HEAD >/dev/null
 
 git restore --staged --worktree tests/Feature/ProjectDashboardUxTest.php 2>/dev/null || true
 

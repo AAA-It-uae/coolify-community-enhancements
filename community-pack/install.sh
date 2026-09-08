@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-EXPECTED_VERSION='4.3.17'
-EXPECTED_SHA='5ff21103974a30e107ce046190fb478658a214e7'
+EXPECTED_VERSION='4.3.18'
+EXPECTED_SHA='abc701ac6503afc602661fcfc52e0c455f289e73'
 CONTAINER="${COOLIFY_CONTAINER:-coolify}"
 ROOT='/var/www/html'
 PACK_REPO='https://github.com/AAA-It-uae/coolify-community-enhancements.git'
