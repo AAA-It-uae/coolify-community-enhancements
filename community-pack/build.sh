@@ -135,7 +135,7 @@ grep -q "value: 'running'" resources/views/livewire/project/index.blade.php
 grep -q 'project.domains' resources/views/livewire/project/index.blade.php
 grep -q '<livewire:local-server-vitals' resources/views/layouts/app.blade.php
 grep -q '<x-local-magnifier' resources/views/layouts/app.blade.php
-grep -q 'wire:poll.15s="refreshVitals"' resources/views/livewire/local-server-vitals.blade.php
+grep -q 'wire:poll.5s.visible="refreshVitals"' resources/views/livewire/local-server-vitals.blade.php
 grep -q 'wire:poll.60000ms' resources/views/livewire/deployments-indicator.blade.php
 grep -q 'wire:poll.60000ms="refreshDeployments"' resources/views/livewire/dashboard/active-deployments.blade.php
 grep -q "'applications.build_pack as build_pack'" app/Support/ProjectDomainAggregator.php
