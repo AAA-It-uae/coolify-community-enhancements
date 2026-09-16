@@ -59,7 +59,7 @@ The installer is deliberately strict. It checks the exact Coolify version and so
 
 ## Why the polling changes are here
 
-The dashboard should feel alive without constantly doing work when nothing is happening. The pack uses a 15-second host-vitals refresh and moves deployment polling to **5 seconds while active** and **60 seconds while idle**.
+The dashboard should feel alive without constantly doing work when nothing is happening. The pack uses a 5-second visible host-vitals refresh and moves deployment polling to **5 seconds while active** and **60 seconds while idle**.
 
 Earlier testing on one 22-project Coolify installation also showed how much repeated status work could cost. After short-lived status caching, measured median component times changed from 182.67 ms to 18.85 ms on Dashboard mount, 227.31 ms to 22.77 ms on Projects mount, and 315.76 ms to 4.10 ms for project-status aggregation. Those numbers are evidence from one installation, not a universal benchmark.
 

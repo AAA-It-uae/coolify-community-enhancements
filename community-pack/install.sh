@@ -175,7 +175,7 @@ if docker exec "$CONTAINER" grep -q 'addTraefikHostRules\|array_walk_recursive' 
     exit 49
 fi
 docker exec "$CONTAINER" grep -q 'CPU_SAMPLE_KEY' "$ROOT/app/Livewire/LocalServerVitals.php"
-docker exec "$CONTAINER" grep -q 'wire:poll.15s="refreshVitals"' "$ROOT/resources/views/livewire/local-server-vitals.blade.php"
+docker exec "$CONTAINER" grep -q 'wire:poll.5s.visible="refreshVitals"' "$ROOT/resources/views/livewire/local-server-vitals.blade.php"
 docker exec "$CONTAINER" grep -q 'wire:poll.60000ms' "$ROOT/resources/views/livewire/deployments-indicator.blade.php"
 docker exec "$CONTAINER" grep -q 'wire:poll.60000ms="refreshDeployments"' "$ROOT/resources/views/livewire/dashboard/active-deployments.blade.php"
 
