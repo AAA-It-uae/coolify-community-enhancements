@@ -1,0 +1,54 @@
+name: Adapt Coolify v4.3.23
+
+on:
+  push:
+    branches: ['compat/coolify-v4.3.23']
+
+permissions:
+  contents: write
+
+jobs:
+  adapt:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: compat/coolify-v4.3.23
+          fetch-depth: 0
+
+      - name: Pin community pack to exact stable release
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          files = [
+              Path('community-pack/build.sh'),
+              Path('community-pack/install.sh'),
+              Path('README.md'),
+              Path('community-pack/README.md'),
+          ]
+          replacements = {
+              'v4.3.21': 'v4.3.23',
+              '4.3.21': '4.3.23',
+              '113a2f229d7fa2391119d9acf149e9b0b70382f5': 'e2e2d4010bcd590084b66d6f748f3eec8e2bbee9',
+          }
+          for p in files:
+              s = p.read_text()
+              for a, b in replacements.items():
+                  s = s.replace(a, b)
+              p.write_text(s)
+          PY
+          grep -q "UPSTREAM_TAG='v4.3.23'" community-pack/build.sh
+          grep -q "UPSTREAM_SHA='e2e2d4010bcd590084b66d6f748f3eec8e2bbee9'" community-pack/build.sh
+          grep -q "EXPECTED_VERSION='4.3.23'" community-pack/install.sh
+          grep -q "EXPECTED_SHA='e2e2d4010bcd590084b66d6f748f3eec8e2bbee9'" community-pack/install.sh
+
+      - name: Commit exact-release adaptation
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add community-pack/build.sh community-pack/install.sh README.md community-pack/README.md
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'fix: adapt community pack to Coolify v4.3.23'
+          git push origin HEAD:compat/coolify-v4.3.23
