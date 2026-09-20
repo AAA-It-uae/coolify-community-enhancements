@@ -1,4 +1,4 @@
-# Coolify Community Pack for 4.3.21
+# Coolify Community Pack for 4.3.23
 
 I manage enough projects that I got tired of opening extra pages just to answer simple questions: what is running, where is it, and does the server look healthy?
 
@@ -15,13 +15,13 @@ It adds:
 
 ## Install
 
-This installer is intentionally pinned to **Coolify 4.3.21**.
+This installer is intentionally pinned to **Coolify 4.3.23**.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/AAA-It-uae/coolify-community-enhancements/main/community-pack/install.sh | sudo bash
 ```
 
-It refuses unknown versions, checks the running Coolify files against the official 4.3.21 source, creates a backup, validates PHP and Blade, restarts only the Coolify app container, waits for health, and rolls back automatically if the install fails.
+It refuses unknown versions, checks the running Coolify files against the official 4.3.23 source, creates a backup, validates PHP and Blade, restarts only the Coolify app container, waits for health, and rolls back automatically if the install fails.
 
 ## What to expect
 
@@ -37,8 +37,8 @@ It refuses unknown versions, checks the running Coolify files against the offici
 
 ## Compatibility
 
-Test target: `v4.3.21`  
-Official commit: `113a2f229d7fa2391119d9acf149e9b0b70382f5`
+Test target: `v4.3.23`  
+Official commit: `e2e2d4010bcd590084b66d6f748f3eec8e2bbee9`
 
 Coolify updates replace container-level customizations. After an official update, wait until this pack explicitly supports the new version before reinstalling it.
 
