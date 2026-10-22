@@ -6,7 +6,7 @@ EXPECTED_SHA='86c21c0d5babfa8c7d65a9c27e5863c629a89c7c'
 CONTAINER="${COOLIFY_CONTAINER:-coolify}"
 ROOT='/var/www/html'
 PACK_REPO="${PACK_REPO_OVERRIDE:-https://github.com/AAA-It-uae/coolify-community-enhancements.git}"
-PACK_REF="${PACK_REF:-coolify-4.4.7-pack-v2}"
+PACK_REF="${PACK_REF:-coolify-4.4.7-pack-v3}"
 TMP="$(mktemp -d)"
 PACK_DIR="$TMP/pack"
 BUILD_DIR="$TMP/build"
@@ -37,9 +37,13 @@ all_files=("${existing_files[@]}" "${new_files[@]}")
 cleanup() { rm -rf "$TMP"; }
 
 wait_healthy() {
-    for _ in $(seq 1 60); do
+    # Reverb may start several minutes after nginx on small production hosts.
+    for attempt in $(seq 1 180); do
         status="$(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || true)"
         [[ "$status" == 'healthy' ]] && return 0
+        if (( attempt % 15 == 0 )); then
+            echo "Waiting for Coolify app and Reverb health ($((attempt * 2))s, status=$status)..." >&2
+        fi
         sleep 2
     done
     return 1
