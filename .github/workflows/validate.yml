@@ -24,6 +24,8 @@ jobs:
           bash -n dashboard-performance/install.sh
           bash -n community-pack/build.sh
           bash -n community-pack/install.sh
+          bash -n community-pack-4.4.7/build.sh
+          bash -n community-pack-4.4.7/install.sh
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
@@ -42,6 +44,17 @@ jobs:
           test "$(git -C "$RUNNER_TEMP/coolify-v4.3.23" rev-parse HEAD)" = "$COOLIFY_SHA"
           test "$(git -C "$RUNNER_TEMP/coolify-v4.3.23" diff --cached --name-only | wc -l)" -eq 12
           git -C "$RUNNER_TEMP/coolify-v4.3.23" diff --cached --check
+
+      - name: Build and validate exact Coolify 4.4.7 pack
+        run: |
+          bash community-pack-4.4.7/build.sh "$RUNNER_TEMP/coolify-v4.4.7"
+          test "$(git -C "$RUNNER_TEMP/coolify-v4.4.7" rev-parse HEAD)" = 86c21c0d5babfa8c7d65a9c27e5863c629a89c7c
+          git -C "$RUNNER_TEMP/coolify-v4.4.7" diff --cached --check
+          for rel in app/Livewire/Dashboard.php app/Livewire/LocalServerVitals.php app/Livewire/Project/Index.php app/Support/ProjectDomainAggregator.php app/Support/ProjectStatusAggregator.php; do
+            php -l "$RUNNER_TEMP/coolify-v4.4.7/$rel"
+          done
+          grep -Fq 'use App\Models\TeamInvitation;' "$RUNNER_TEMP/coolify-v4.4.7/app/Livewire/Dashboard.php"
+          grep -q '<livewire:local-server-vitals' "$RUNNER_TEMP/coolify-v4.4.7/resources/views/layouts/app.blade.php"
 
       - name: Validate required public assets
         run: |
