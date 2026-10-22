@@ -6,7 +6,7 @@ EXPECTED_SHA='86c21c0d5babfa8c7d65a9c27e5863c629a89c7c'
 CONTAINER="${COOLIFY_CONTAINER:-coolify}"
 ROOT='/var/www/html'
 PACK_REPO="${PACK_REPO_OVERRIDE:-https://github.com/AAA-It-uae/coolify-community-enhancements.git}"
-PACK_REF="${PACK_REF:-coolify-4.4.7-pack-v1}"
+PACK_REF="${PACK_REF:-coolify-4.4.7-pack-v2}"
 TMP="$(mktemp -d)"
 PACK_DIR="$TMP/pack"
 BUILD_DIR="$TMP/build"
@@ -95,18 +95,31 @@ esac
 [[ "$(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER")" == 'healthy' ]] || { echo 'Coolify is not healthy. Aborting.' >&2; exit 44; }
 
 if docker exec "$CONTAINER" grep -q '<livewire:local-server-vitals' "$ROOT/resources/views/layouts/app.blade.php" 2>/dev/null; then
-    INSTALL_MODE='upgrade'
-    for rel in "${new_files[@]}"; do
-        docker exec "$CONTAINER" test -s "$ROOT/$rel" || {
-            echo "Existing community pack is incomplete: $rel is missing." >&2
-            exit 45
-        }
-    done
-    docker exec "$CONTAINER" grep -q '<x-local-magnifier' "$ROOT/resources/views/layouts/app.blade.php" || {
-        echo 'Existing community pack marker is incomplete.' >&2
-        exit 45
-    }
-    echo "Existing community pack detected on Coolify $EXPECTED_VERSION; upgrading it safely."
+    if docker exec "$CONTAINER" grep -q '<x-local-magnifier' "$ROOT/resources/views/layouts/app.blade.php"; then
+        INSTALL_MODE='upgrade'
+        for rel in "${new_files[@]}"; do
+            docker exec "$CONTAINER" test -s "$ROOT/$rel" || {
+                echo "Existing community pack is incomplete: $rel is missing." >&2
+                exit 45
+            }
+        done
+        echo "Existing community pack detected on Coolify $EXPECTED_VERSION; upgrading it safely."
+    else
+        INSTALL_MODE='vitals-only'
+        layout="$ROOT/resources/views/layouts/app.blade.php"
+        [[ "$(docker exec "$CONTAINER" grep -c 'IRAN_SERVER_VITALS_BEGIN' "$layout")" == 1 ]]
+        [[ "$(docker exec "$CONTAINER" grep -c 'IRAN_SERVER_VITALS_END' "$layout")" == 1 ]]
+        for rel in app/Livewire/LocalServerVitals.php resources/views/livewire/local-server-vitals.blade.php; do
+            docker exec "$CONTAINER" test -s "$ROOT/$rel" || { echo "Existing vitals file missing: $rel" >&2; exit 45; }
+        done
+        for rel in app/Support/ProjectDomainAggregator.php app/Support/ProjectStatusAggregator.php resources/views/components/local-magnifier.blade.php; do
+            if docker exec "$CONTAINER" test -e "$ROOT/$rel"; then
+                echo "Unexpected partial pack file: $rel" >&2
+                exit 45
+            fi
+        done
+        echo 'Standalone Iran server-vitals block detected; checking exact official base before integrating.'
+    fi
 else
     for rel in "${new_files[@]}"; do
         if docker exec "$CONTAINER" test -e "$ROOT/$rel"; then
@@ -120,20 +133,30 @@ git clone --quiet --depth 1 --branch "$PACK_REF" "$PACK_REPO" "$PACK_DIR"
 bash "$PACK_DIR/community-pack-4.4.7/build.sh" "$BUILD_DIR"
 [[ "$(git -C "$BUILD_DIR" rev-parse HEAD)" == "$EXPECTED_SHA" ]] || { echo 'Unexpected upstream source commit.' >&2; exit 46; }
 
-mkdir -p "$BACKUP_DIR/files"
-
-if [[ "$INSTALL_MODE" == 'fresh' ]]; then
+if [[ "$INSTALL_MODE" == 'fresh' || "$INSTALL_MODE" == 'vitals-only' ]]; then
     for rel in "${existing_files[@]}"; do
         mkdir -p "$TMP/current/$(dirname "$rel")" "$TMP/base/$(dirname "$rel")"
         read_from_container "$rel" "$TMP/current/$rel"
         git -C "$BUILD_DIR" show "HEAD:$rel" > "$TMP/base/$rel"
-        cmp -s "$TMP/current/$rel" "$TMP/base/$rel" || {
+        comparison="$TMP/current/$rel"
+        if [[ "$INSTALL_MODE" == 'vitals-only' && "$rel" == 'resources/views/layouts/app.blade.php' ]]; then
+            comparison="$TMP/iran-layout-without-vitals.blade.php"
+            sed '/IRAN_SERVER_VITALS_BEGIN/,/IRAN_SERVER_VITALS_END/d' "$TMP/current/$rel" > "$comparison"
+        fi
+        cmp -s "$comparison" "$TMP/base/$rel" || {
             echo "Coolify source differs from the official $EXPECTED_VERSION file: $rel" >&2
             echo 'Nothing was changed.' >&2
             exit 47
         }
     done
 fi
+
+if [[ "${PACK_PREFLIGHT_ONLY:-0}" == 1 ]]; then
+    echo "Community pack preflight passed on Coolify $EXPECTED_VERSION (mode=$INSTALL_MODE); no production files changed."
+    exit 0
+fi
+
+mkdir -p "$BACKUP_DIR/files"
 
 for rel in "${all_files[@]}"; do
     if docker exec "$CONTAINER" test -e "$ROOT/$rel"; then
