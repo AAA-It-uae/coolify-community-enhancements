@@ -1,0 +1,59 @@
+diff --git a/app/Livewire/LocalServerVitals.php b/app/Livewire/LocalServerVitals.php
+index 0f3bed4..aa5f6e5 100644
+--- a/app/Livewire/LocalServerVitals.php
++++ b/app/Livewire/LocalServerVitals.php
+@@ -14,0 +15,2 @@ class LocalServerVitals extends Component
++    public string $variant = 'desktop';
++
+@@ -32 +34 @@ class LocalServerVitals extends Component
+-    public function mount(): void
++    public function mount(string $variant = 'desktop'): void
+@@ -33,0 +36 @@ public function mount(): void
++        $this->variant = $variant === 'mobile' ? 'mobile' : 'desktop';
+diff --git a/resources/views/layouts/app.blade.php b/resources/views/layouts/app.blade.php
+index b80c402..51dfe13 100644
+--- a/resources/views/layouts/app.blade.php
++++ b/resources/views/layouts/app.blade.php
+@@ -159,0 +160 @@ class="hidden shrink-0 items-center"></div>
++                        <livewire:local-server-vitals variant="mobile" key="mobile-vitals" />
+diff --git a/resources/views/livewire/local-server-vitals.blade.php b/resources/views/livewire/local-server-vitals.blade.php
+index c19930a..76f7b84 100644
+--- a/resources/views/livewire/local-server-vitals.blade.php
++++ b/resources/views/livewire/local-server-vitals.blade.php
+@@ -1,2 +1,7 @@
+-<div data-vitals-live-fix="20260916" data-vitals-refreshed-at="{{ now()->getTimestamp() }}" wire:poll.5s.visible="refreshVitals"
+-    class="hidden xl:flex min-w-0 shrink-0 items-center gap-1.5 mr-2 whitespace-nowrap text-[10.5px] text-neutral-600 dark:text-fg-dim"
++<div data-vitals-live-fix="20261102" data-vitals-refreshed-at="{{ now()->getTimestamp() }}" wire:poll.5s.visible="refreshVitals"
++    x-data="{ open: false }" x-on:click.outside="open = false" x-on:keydown.escape.window="open = false"
++    @class([
++        'relative min-w-0 shrink-0 items-center mr-2 text-[10.5px] text-neutral-600 dark:text-fg-dim',
++        'hidden lg:flex' => $variant === 'desktop',
++        'flex lg:hidden' => $variant === 'mobile',
++    ])
+@@ -17,0 +23,23 @@ class="hidden xl:flex min-w-0 shrink-0 items-center gap-1.5 mr-2 whitespace-nowr
++    <button type="button" x-on:click="open = !open" :aria-expanded="open.toString()" aria-label="Server resources"
++        class="{{ $variant === 'desktop' ? 'xl:hidden' : '' }} inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 dark:border-white/10 dark:bg-panel dark:text-fg-dim dark:hover:bg-white/[0.06]">
++        <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
++            <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6" />
++            <path d="M7 15v-3m5 3V8m5 7v-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
++        </svg>
++    </button>
++
++    <div x-show="open" x-cloak
++        class="absolute right-0 top-full mt-2 w-72 rounded-xl border border-neutral-200 bg-white p-3 text-xs shadow-xl dark:border-white/10 dark:bg-panel xl:hidden"
++        style="z-index:1100;max-width:calc(100vw - 1rem)">
++        <div class="mb-2 font-semibold text-neutral-800 dark:text-fg">Server resources</div>
++        <dl class="grid gap-x-3 gap-y-1.5 tabular-nums" style="grid-template-columns:auto 1fr">
++            <dt>CPU</dt><dd class="text-right">{{ $cores }} cores · {{ number_format($cpuPercent, 1) }}% used · {{ number_format($cpuFreePercent, 1) }}% free</dd>
++            <dt>RAM</dt><dd class="text-right">{{ number_format($ramUsedGiB, 1) }}G used · {{ number_format($ramFreeGiB, 1) }}G free · {{ number_format($ramTotalGiB, 1) }}G total</dd>
++            <dt>Disk</dt><dd class="text-right">{{ number_format($diskUsedGiB, 1) }}G used · {{ number_format($diskFreeGiB, 1) }}G free · {{ number_format($diskTotalGiB, 1) }}G total</dd>
++            <dt>Load</dt><dd class="text-right">{{ number_format($load1, 2) }} / {{ number_format($load5, 2) }} / {{ number_format($load15, 2) }}</dd>
++        </dl>
++    </div>
++
++    @if ($variant === 'desktop')
++    <div class="hidden xl:flex min-w-0 shrink-0 items-center gap-1.5 whitespace-nowrap">
++
+@@ -68,0 +97,2 @@ class="hidden xl:flex min-w-0 shrink-0 items-center gap-1.5 mr-2 whitespace-nowr
++    </div>
++    @endif
