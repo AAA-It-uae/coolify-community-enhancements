@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, 'compat/**']
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -26,6 +27,10 @@ jobs:
           bash -n community-pack/install.sh
           bash -n community-pack-4.4.7/build.sh
           bash -n community-pack-4.4.7/install.sh
+          bash -n community-pack-4.5.3/build.sh
+          bash -n community-pack-4.5.3/install.sh
+          bash -n community-pack-4.5.3/build-v2.sh
+          bash -n community-pack-4.5.3/install-v2.sh
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
@@ -56,6 +61,17 @@ jobs:
           grep -Fq 'use App\Models\TeamInvitation;' "$RUNNER_TEMP/coolify-v4.4.7/app/Livewire/Dashboard.php"
           grep -q '<livewire:local-server-vitals' "$RUNNER_TEMP/coolify-v4.4.7/resources/views/layouts/app.blade.php"
 
+      - name: Build and validate exact Coolify 4.5.3 pack
+        run: |
+          bash community-pack-4.5.3/build-v2.sh "$RUNNER_TEMP/coolify-v4.5.3"
+          test "$(git -C "$RUNNER_TEMP/coolify-v4.5.3" rev-parse HEAD)" = 70c1bcb1381de7d42fd290e6cd50bf9a5bcf714d
+          git -C "$RUNNER_TEMP/coolify-v4.5.3" diff --cached --check
+          for rel in app/Livewire/Dashboard.php app/Livewire/LocalServerVitals.php app/Livewire/Project/Index.php app/Support/ProjectDomainAggregator.php app/Support/ProjectStatusAggregator.php; do
+            php -l "$RUNNER_TEMP/coolify-v4.5.3/$rel"
+          done
+          grep -Fq 'use App\Models\TeamInvitation;' "$RUNNER_TEMP/coolify-v4.5.3/app/Livewire/Dashboard.php"
+          grep -q '<livewire:local-server-vitals' "$RUNNER_TEMP/coolify-v4.5.3/resources/views/layouts/app.blade.php"
+
       - name: Validate required public assets
         run: |
           test -f assets/screenshots/server-vitals-cpu-ram-disk.png
@@ -66,6 +82,7 @@ jobs:
           test -f interactive-magnifier/files/local-magnifier.blade.php
 
   dev-stack:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
