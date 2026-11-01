@@ -34,7 +34,7 @@ cd "$OUT"
 git config user.name 'community-pack-builder'
 git config user.email 'actions@users.noreply.github.com'
 if ! git cat-file -e "$PROJECT_UX_SHA^{commit}" 2>/dev/null; then
-    git fetch --quiet --update-shallow "${PROJECT_UX_SOURCE:-https://github.com/mtalavi/coolify.git}" "$PROJECT_UX_SHA"
+    git fetch --quiet --depth=2 --update-shallow "${PROJECT_UX_SOURCE:-https://github.com/mtalavi/coolify.git}" "$PROJECT_UX_SHA"
 fi
 git cherry-pick -X theirs --no-commit "$PROJECT_UX_SHA" >/dev/null
 
