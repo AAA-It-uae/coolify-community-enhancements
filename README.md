@@ -27,7 +27,7 @@ The current pack is built specifically for **Coolify 4.5.3** and adds:
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AAA-It-uae/coolify-community-enhancements/coolify-4.5.3-pack-v1/community-pack-4.5.3/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/AAA-It-uae/coolify-community-enhancements/coolify-4.5.3-pack-v2/community-pack-4.5.3/install-v2.sh | sudo bash
 ```
 
 The installer is deliberately strict. It checks the exact Coolify version and source files first, creates a backup, validates the modified files, waits for Coolify to become healthy again, and rolls back if something fails.
